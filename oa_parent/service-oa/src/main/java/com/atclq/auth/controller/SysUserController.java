@@ -1,10 +1,18 @@
 package com.atclq.auth.controller;
 
 
+import com.atclq.auth.service.SysDeptService;
+import com.atclq.auth.service.SysPostService;
+import com.atclq.auth.service.SysRoleService;
+import com.atclq.auth.service.SysUserRoleService;
 import com.atclq.auth.service.SysUserService;
 import com.atclq.common.result.Result;
 import com.atclq.common.utils.MD5;
+import com.atclq.model.system.SysDept;
+import com.atclq.model.system.SysPost;
+import com.atclq.model.system.SysRole;
 import com.atclq.model.system.SysUser;
+import com.atclq.model.system.SysUserRole;
 import com.atclq.vo.system.AssginRoleVo;
 import com.atclq.vo.system.SysUserQueryVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -16,6 +24,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Api(tags = "用户管理接口")
 @RestController
 @RequestMapping("/admin/system/sysUser")
@@ -23,6 +36,18 @@ public class SysUserController {
 
     @Autowired
     private SysUserService sysUserService;
+
+    @Autowired
+    private SysDeptService sysDeptService;
+
+    @Autowired
+    private SysPostService sysPostService;
+
+    @Autowired
+    private SysUserRoleService sysUserRoleService;
+
+    @Autowired
+    private SysRoleService sysRoleService;
 
     @ApiOperation(value = "更新状态")
     @GetMapping("updateStatus/{id}/{status}")
@@ -62,6 +87,39 @@ public class SysUserController {
 
         //调用mp的方法实现条件分页查询
         IPage<SysUser> pageModel = sysUserService.page(pageParam, wrapper);
+        
+        //填充用户的岗位名称、部门名称和角色列表
+        List<SysUser> userList = pageModel.getRecords();
+        for (SysUser user : userList) {
+            //填充部门名称
+            if (user.getDeptId() != null) {
+                SysDept dept = sysDeptService.getById(user.getDeptId());
+                if (dept != null) {
+                    user.setDeptName(dept.getName());
+                }
+            }
+            
+            //填充岗位名称
+            if (user.getPostId() != null) {
+                SysPost post = sysPostService.getById(user.getPostId());
+                if (post != null) {
+                    user.setPostName(post.getName());
+                }
+            }
+            
+            //填充角色列表
+            LambdaQueryWrapper<SysUserRole> userRoleWrapper = new LambdaQueryWrapper<>();
+            userRoleWrapper.eq(SysUserRole::getUserId, user.getId());
+            List<SysUserRole> userRoleList = sysUserRoleService.list(userRoleWrapper);
+            if (userRoleList != null && !userRoleList.isEmpty()) {
+                List<Long> roleIdList = userRoleList.stream()
+                        .map(SysUserRole::getRoleId)
+                        .collect(Collectors.toList());
+                List<SysRole> roleList = sysRoleService.listByIds(roleIdList);
+                user.setRoleList(roleList);
+            }
+        }
+        
         return Result.ok(pageModel);
     }
 
