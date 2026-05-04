@@ -68,13 +68,15 @@ public class SysUserController {
         //封装条件，判断条件值不为空
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         //获取条件值
-        String username = sysUserQueryVo.getKeyword();
+        String keyword = sysUserQueryVo.getKeyword();
         String createTimeBegin = sysUserQueryVo.getCreateTimeBegin();
         String createTimeEnd = sysUserQueryVo.getCreateTimeEnd();
         //判断条件值不为空
-        //like 模糊查询
-        if(!StringUtils.isEmpty(username)) {
-            wrapper.like(SysUser::getUsername,username);
+        //like 模糊查询 - 支持用户名、姓名、手机号码
+        if(!StringUtils.isEmpty(keyword)) {
+            wrapper.and(w -> w.like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getName, keyword)
+                    .or().like(SysUser::getPhone, keyword));
         }
         //ge 大于等于
         if(!StringUtils.isEmpty(createTimeBegin)) {
